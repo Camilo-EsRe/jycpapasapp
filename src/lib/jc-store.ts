@@ -87,6 +87,17 @@ export function addProduction(p: Omit<Production, "id" | "ts">) {
   const db = getDB();
   setDB({ ...db, productions: [{ ...p, id: crypto.randomUUID(), ts: Date.now() }, ...db.productions] });
 }
+export function deleteMovement(id: string) {
+  const db = getDB();
+  setDB({ ...db, movements: db.movements.filter((m) => m.id !== id) });
+}
+export function deleteProduction(id: string) {
+  const db = getDB();
+  setDB({ ...db, productions: db.productions.filter((p) => p.id !== id) });
+}
+
+export const APP_PASSWORD = "NOLOSABRAN";
+
 
 export function stockFor(db: DB, freezer: FreezerId, potato: PotatoId): number {
   return db.movements.reduce((sum, m) => {
@@ -101,22 +112,16 @@ export function freezerTotal(db: DB, freezer: FreezerId): number {
   return POTATOES.reduce((s, p) => s + stockFor(db, freezer, p.id), 0);
 }
 
-export function toCSV(rows: Record<string, unknown>[]): string {
-  if (!rows.length) return "";
-  const headers = Object.keys(rows[0]);
-  const esc = (v: unknown) => {
-    const s = v == null ? "" : String(v);
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  return [headers.join(","), ...rows.map((r) => headers.map((h) => esc(r[h])).join(","))].join("\n");
+export async function downloadXLSX(
+  filename: string,
+  sheets: { name: string; rows: Record<string, unknown>[] }[],
+) {
+  const XLSX = await import("xlsx");
+  const wb = XLSX.utils.book_new();
+  for (const s of sheets) {
+    const ws = XLSX.utils.json_to_sheet(s.rows.length ? s.rows : [{}]);
+    XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0, 31));
+  }
+  XLSX.writeFile(wb, filename);
 }
 
-export function downloadCSV(name: string, csv: string) {
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
-}

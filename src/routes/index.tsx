@@ -6,12 +6,14 @@ import {
   Boxes,
   Download,
   Factory,
+  FileSpreadsheet,
   Flame,
   History,
   LogIn,
   LogOut,
   Snowflake,
   Sparkles,
+  Trash2,
   TrendingUp,
 } from "lucide-react";
 import {
@@ -45,23 +47,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
+  APP_PASSWORD,
   FREEZERS,
   POTATOES,
   type FreezerId,
   type PotatoId,
   addMovement,
   addProduction,
-  downloadCSV,
+  deleteMovement,
+  deleteProduction,
+  downloadXLSX,
   freezerTotal,
   stockFor,
-  toCSV,
   totalStock,
   useDB,
 } from "@/lib/jc-store";
 import { sfx } from "@/lib/jc-sounds";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -596,9 +609,16 @@ function FreezerChart() {
 /* ---------------- History ---------------- */
 function HistorySection() {
   const db = useDB();
+  const [gate, setGate] = useState<
+    | null
+    | { mode: "export" }
+    | { mode: "delete-mov"; id: string; label: string }
+    | { mode: "delete-prod"; id: string; label: string }
+  >(null);
+  const [pw, setPw] = useState("");
 
-  function exportMov() {
-    const rows = db.movements.map((m) => ({
+  function doExport() {
+    const movRows = db.movements.map((m) => ({
       Fecha: fmtDateTime(m.ts),
       Operario: m.operario,
       Congelador: FRZ_LABEL[m.freezer],
@@ -606,11 +626,7 @@ function HistorySection() {
       Tipo: m.kind === "ingreso" ? "Ingreso" : "Retiro",
       Cantidad: m.qty,
     }));
-    downloadCSV(`movimientos_jc_papas_${Date.now()}.csv`, toCSV(rows));
-    toast.success("Movimientos exportados a CSV");
-  }
-  function exportProd() {
-    const rows = db.productions.map((p) => {
+    const prodRows = db.productions.map((p) => {
       const d = new Date(p.ts);
       return {
         Fecha: d.toLocaleDateString("es-CO"),
@@ -619,11 +635,34 @@ function HistorySection() {
         Variedad: POT_LABEL[p.potato],
         Bultos: p.bultos,
         Paquetes: p.paquetes,
-        "Paquetes_por_Bulto": (p.paquetes / p.bultos).toFixed(2),
+        Paquetes_por_Bulto: Number((p.paquetes / p.bultos).toFixed(2)),
       };
     });
-    downloadCSV(`produccion_jc_papas_${Date.now()}.csv`, toCSV(rows));
-    toast.success("Producción exportada a CSV");
+    downloadXLSX(`jc_papas_${Date.now()}.xlsx`, [
+      { name: "Movimientos", rows: movRows },
+      { name: "Produccion", rows: prodRows },
+    ]);
+    toast.success("Excel descargado", { description: "2 hojas: Movimientos y Producción" });
+  }
+
+  function confirmGate() {
+    if (pw !== APP_PASSWORD) {
+      sfx.error();
+      toast.error("Contraseña incorrecta");
+      return;
+    }
+    if (!gate) return;
+    if (gate.mode === "export") {
+      doExport();
+    } else if (gate.mode === "delete-mov") {
+      deleteMovement(gate.id);
+      toast.success("Movimiento eliminado");
+    } else if (gate.mode === "delete-prod") {
+      deleteProduction(gate.id);
+      toast.success("Registro eliminado");
+    }
+    setGate(null);
+    setPw("");
   }
 
   return (
@@ -637,8 +676,13 @@ function HistorySection() {
             </CardTitle>
             <CardDescription>Historial de congeladores</CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={exportMov} disabled={!db.movements.length}>
-            <Download className="size-4 mr-1.5" /> CSV
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setGate({ mode: "export" })}
+            disabled={!db.movements.length && !db.productions.length}
+          >
+            <FileSpreadsheet className="size-4 mr-1.5" /> Excel
           </Button>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -652,7 +696,8 @@ function HistorySection() {
                   <TableHead>Operario</TableHead>
                   <TableHead>Congelador</TableHead>
                   <TableHead>Variedad</TableHead>
-                  <TableHead className="text-right">Cantidad</TableHead>
+                  <TableHead className="text-right">Cant.</TableHead>
+                  <TableHead className="w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -666,10 +711,6 @@ function HistorySection() {
                     <TableCell className="text-xs whitespace-nowrap">{POT_LABEL[m.potato]}</TableCell>
                     <TableCell className="text-right tabular-nums font-medium">
                       <span
-                        className={cn(
-                          "inline-flex items-center gap-1",
-                          m.kind === "ingreso" ? "text-emerald-brand" : "text-amber-brand",
-                        )}
                         style={{
                           color:
                             m.kind === "ingreso"
@@ -680,6 +721,22 @@ function HistorySection() {
                         {m.kind === "ingreso" ? "+" : "−"}
                         {m.qty}
                       </span>
+                    </TableCell>
+                    <TableCell className="p-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                        onClick={() =>
+                          setGate({
+                            mode: "delete-mov",
+                            id: m.id,
+                            label: `${m.kind === "ingreso" ? "+" : "−"}${m.qty} ${POT_LABEL[m.potato]}`,
+                          })
+                        }
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -698,8 +755,13 @@ function HistorySection() {
             </CardTitle>
             <CardDescription>Eficiencia diaria</CardDescription>
           </div>
-          <Button variant="outline" size="sm" onClick={exportProd} disabled={!db.productions.length}>
-            <Download className="size-4 mr-1.5" /> CSV
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setGate({ mode: "export" })}
+            disabled={!db.movements.length && !db.productions.length}
+          >
+            <FileSpreadsheet className="size-4 mr-1.5" /> Excel
           </Button>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -710,12 +772,12 @@ function HistorySection() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Fecha</TableHead>
-                  <TableHead>Día</TableHead>
                   <TableHead>Operario</TableHead>
                   <TableHead>Variedad</TableHead>
                   <TableHead className="text-right">Bultos</TableHead>
-                  <TableHead className="text-right">Paquetes</TableHead>
-                  <TableHead className="text-right">Pq/Bulto</TableHead>
+                  <TableHead className="text-right">Paq.</TableHead>
+                  <TableHead className="text-right">Pq/B</TableHead>
+                  <TableHead className="w-8"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -726,7 +788,6 @@ function HistorySection() {
                       <TableCell className="text-xs whitespace-nowrap text-muted-foreground">
                         {d.toLocaleDateString("es-CO")}
                       </TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{DAYS[d.getDay()]}</TableCell>
                       <TableCell className="whitespace-nowrap">{p.operario}</TableCell>
                       <TableCell className="text-xs whitespace-nowrap">{POT_LABEL[p.potato]}</TableCell>
                       <TableCell className="text-right tabular-nums">{p.bultos}</TableCell>
@@ -737,6 +798,22 @@ function HistorySection() {
                       >
                         {(p.paquetes / p.bultos).toFixed(2)}
                       </TableCell>
+                      <TableCell className="p-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={() =>
+                            setGate({
+                              mode: "delete-prod",
+                              id: p.id,
+                              label: `${p.paquetes} paq · ${POT_LABEL[p.potato]}`,
+                            })
+                          }
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -745,9 +822,81 @@ function HistorySection() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={!!gate}
+        onOpenChange={(o) => {
+          if (!o) {
+            setGate(null);
+            setPw("");
+          }
+        }}
+      >
+        <DialogContent className="surface-card">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {gate?.mode === "export" ? (
+                <>
+                  <Download className="size-5 text-emerald-brand" />
+                  Descargar Excel
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-5 text-destructive" />
+                  Eliminar registro
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {gate?.mode === "export"
+                ? "Ingresa la contraseña para descargar el historial."
+                : gate && "label" in gate
+                  ? `Vas a eliminar: ${gate.label}. Ingresa la contraseña.`
+                  : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              confirmGate();
+            }}
+            className="space-y-3"
+          >
+            <Input
+              type="password"
+              autoFocus
+              placeholder="Contraseña"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+            />
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setGate(null);
+                  setPw("");
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className={
+                  gate?.mode === "export" ? "glow-emerald" : ""
+                }
+                variant={gate?.mode === "export" ? "default" : "destructive"}
+              >
+                {gate?.mode === "export" ? "Descargar" : "Eliminar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
+
 
 /* ---------------- helpers ---------------- */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
