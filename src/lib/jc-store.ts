@@ -87,6 +87,17 @@ export function addProduction(p: Omit<Production, "id" | "ts">) {
   const db = getDB();
   setDB({ ...db, productions: [{ ...p, id: crypto.randomUUID(), ts: Date.now() }, ...db.productions] });
 }
+export function deleteMovement(id: string) {
+  const db = getDB();
+  setDB({ ...db, movements: db.movements.filter((m) => m.id !== id) });
+}
+export function deleteProduction(id: string) {
+  const db = getDB();
+  setDB({ ...db, productions: db.productions.filter((p) => p.id !== id) });
+}
+
+export const APP_PASSWORD = "NOLOSABRAN";
+
 
 export function stockFor(db: DB, freezer: FreezerId, potato: PotatoId): number {
   return db.movements.reduce((sum, m) => {
