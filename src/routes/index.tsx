@@ -6,12 +6,14 @@ import {
   Boxes,
   Download,
   Factory,
+  FileSpreadsheet,
   Flame,
   History,
   LogIn,
   LogOut,
   Snowflake,
   Sparkles,
+  Trash2,
   TrendingUp,
 } from "lucide-react";
 import {
@@ -45,23 +47,34 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
+  APP_PASSWORD,
   FREEZERS,
   POTATOES,
   type FreezerId,
   type PotatoId,
   addMovement,
   addProduction,
-  downloadCSV,
+  deleteMovement,
+  deleteProduction,
+  downloadXLSX,
   freezerTotal,
   stockFor,
-  toCSV,
   totalStock,
   useDB,
 } from "@/lib/jc-store";
 import { sfx } from "@/lib/jc-sounds";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
