@@ -285,12 +285,14 @@ function MovementForm() {
       <CardContent>
         <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
           <Field label="Operario">
-            <Input
-              placeholder="Nombre del operario"
-              value={operario}
-              onChange={(e) => setOperario(e.target.value)}
-              maxLength={60}
-            />
+            <Select value={operario} onValueChange={setOperario}>
+              <SelectTrigger><SelectValue placeholder="Selecciona operario" /></SelectTrigger>
+              <SelectContent>
+                {OPERARIOS.map((o) => (
+                  <SelectItem key={o} value={o}>👷 {o}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
 
           <Field label="Tipo de Movimiento">
