@@ -60,6 +60,7 @@ import { cn } from "@/lib/utils";
 import {
   APP_PASSWORD,
   FREEZERS,
+  OPERARIOS,
   POTATOES,
   type FreezerId,
   type PotatoId,
