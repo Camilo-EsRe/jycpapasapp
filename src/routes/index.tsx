@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   BarChart3,
@@ -118,13 +118,18 @@ function fmtDateTime(ts: number) {
 
 function Dashboard() {
   const db = useDB();
-  const today = new Date();
-  const todayStr = today.toLocaleDateString("es-CO", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  const [todayStr, setTodayStr] = useState("");
+
+  useEffect(() => {
+    setTodayStr(
+      new Date().toLocaleDateString("es-CO", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+    );
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -139,7 +144,9 @@ function Dashboard() {
               <h1 className="truncate text-lg sm:text-xl font-bold tracking-tight">
                 J&amp;C Papas <span className="text-muted-foreground font-normal">· Panel</span>
               </h1>
-              <p className="truncate text-xs text-muted-foreground capitalize">{todayStr}</p>
+              <p className="truncate text-xs text-muted-foreground capitalize">
+                {todayStr || "Panel de inventario"}
+              </p>
             </div>
           </div>
           <Badge variant="outline" className="shrink-0 gap-1.5 border-emerald-brand/40 text-emerald-brand">
