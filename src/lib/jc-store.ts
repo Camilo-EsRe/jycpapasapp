@@ -98,6 +98,9 @@ export function deleteProduction(id: string) {
 
 export const APP_PASSWORD = "NOLOSABRAN";
 
+export const OPERARIOS = ["Trabajador 1", "Trabajador 2", "Trabajador 3"] as const;
+export type Operario = (typeof OPERARIOS)[number];
+
 
 export function stockFor(db: DB, freezer: FreezerId, potato: PotatoId): number {
   return db.movements.reduce((sum, m) => {
