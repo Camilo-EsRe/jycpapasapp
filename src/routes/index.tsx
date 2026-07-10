@@ -75,6 +75,7 @@ import {
   useDB,
 } from "@/lib/jc-store";
 import { sfx } from "@/lib/jc-sounds";
+import { LoginGate } from "@/components/LoginGate";
 
 
 export const Route = createFileRoute("/")({
