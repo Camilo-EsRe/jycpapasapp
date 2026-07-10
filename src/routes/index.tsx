@@ -94,8 +94,16 @@ export const Route = createFileRoute("/")({
       },
     ],
   }),
-  component: Dashboard,
+  component: DashboardGated,
 });
+
+function DashboardGated() {
+  return (
+    <LoginGate>
+      <Dashboard />
+    </LoginGate>
+  );
+}
 
 const POT_LABEL: Record<PotatoId, string> = Object.fromEntries(
   POTATOES.map((p) => [p.id, `${p.emoji} ${p.label}`]),
